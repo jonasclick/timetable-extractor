@@ -23,7 +23,7 @@ ALLOWED_TELEGRAM_IDS = [int(uid.strip()) for uid in os.getenv("ALLOWED_TELEGRAM_
 TARGET_PERSON_NAME = os.getenv("TARGET_PERSON_NAME", "Max Mustermann")
 WALLPAPER_WIDTH = int(os.getenv("WALLPAPER_WIDTH", 1170))
 WALLPAPER_HEIGHT = int(os.getenv("WALLPAPER_HEIGHT", 2532))
-FONT_PATH = os.getenv("FONT_PATH", "./fonts/SFCompact.ttf")
+FONT_PATH = os.getenv("FONT_PATH", "./fonts/Inter_28pt-Light.ttf")
 
 client = genai.Client(api_key=GEMINI_API_KEY)
 
