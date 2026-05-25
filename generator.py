@@ -39,7 +39,7 @@ def generate_wallpaper(schedule: dict, width: int, height: int, font_path: str) 
         stunden = day.get('stunden', '0h')
         
         # Format: Montag 30. März (9.25h)
-        full_header = f"{tag_text} ({stunden})"
+        full_header = f"{tag_text} -- {stunden}"
         
         draw.text((LEFT_MARGIN, y_offset), full_header, font=day_font, fill=text_color)
         y_offset += 70

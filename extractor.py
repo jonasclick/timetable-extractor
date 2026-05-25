@@ -28,12 +28,17 @@ async def extract_shift_plan(client, file_bytes: bytes, mime_type: str, target_p
     prompt = f"""
     Du bist ein präziser Daten-Extraktor. Extrahiere die Arbeitszeiten für die Person {target_person} aus dem bereitgestellten Dienstplan. 
     Antworte ausschliesslich im JSON-Format.
-    
-    WICHTIG:
-    - Extrahiere für jeden Tag den Wochentag inkl. Datum (z.B. Montag 20. April).
-    - Extrahiere die totale Anzahl Arbeitsstunden für diesen Tag (steht meist direkt neben den Zeiten) und gib sie im Format "X.XXh" an. Wenn keine Arbeit stattfindet, setze "0h".
+
+    WICHTIG FÜR DAS DATUMSFORMAT:
+    - Nutze für den Tag das Format "Kurztag TT. Monat" (z.B. "Mo 20. April", "Di 21. Mai").
+    - Nutze Kurzformen für Wochentage: Mo, Di, Mi, Do, Fr, Sa, So.
+    - Lass das Jahr komplett weg.
+
+    WEITERE REGELN:
+    - Extrahiere die totale Anzahl Arbeitsstunden für diesen Tag und gib sie im Format "X.XXh" an. Wenn keine Arbeit stattfindet, setze "0h".
     - Wenn an einem Tag keine Arbeit stattfindet, setze Zeit auf ["Kein Einsatz"].
     """
+
     
     try:
         response = client.models.generate_content(
