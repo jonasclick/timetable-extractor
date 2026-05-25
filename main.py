@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 # Constants from .env
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
+ALLOWED_TELEGRAM_IDS = [int(uid.strip()) for uid in os.getenv("ALLOWED_TELEGRAM_IDS", "").split(",") if uid.strip()]
 TARGET_PERSON_NAME = os.getenv("TARGET_PERSON_NAME", "Max Mustermann")
 WALLPAPER_WIDTH = int(os.getenv("WALLPAPER_WIDTH", 1170))
 WALLPAPER_HEIGHT = int(os.getenv("WALLPAPER_HEIGHT", 2532))
@@ -42,7 +43,7 @@ class WeeklySchedule(BaseModel):
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 async def extract_shift_plan(file_bytes: bytes, mime_type: str) -> WeeklySchedule:
-    """Extracts shift plan data using Gemini 2.0 Flash."""
+    """Extracts shift plan data using Gemini 3.5 Flash."""
     prompt = f"""
     Du bist ein präziser Daten-Extraktor. Extrahiere die Arbeitszeiten für die Person {TARGET_PERSON_NAME} aus dem bereitgestellten Dienstplan. 
     Antworte ausschliesslich im JSON-Format, das dem vorgegebenen Schema entspricht.
@@ -52,9 +53,9 @@ async def extract_shift_plan(file_bytes: bytes, mime_type: str) -> WeeklySchedul
     """
     
     try:
-        # Use gemini-2.0-flash for high speed and accuracy
+        # Use gemini-3.5-flash (latest flagship Flash model as of May 2026)
         response = client.models.generate_content(
-            model="gemini-2.0-flash",
+            model="gemini-3.5-flash",
             contents=[
                 types.Part.from_bytes(data=file_bytes, mime_type=mime_type),
                 prompt
@@ -116,10 +117,6 @@ def generate_wallpaper(schedule: WeeklySchedule) -> io.BytesIO:
             y_offset += 60
         
         y_offset += 40 # Space between days
-        
-        # Optional: Draw a subtle separator line
-        # draw.line([(margin, y_offset), (WALLPAPER_WIDTH - margin, y_offset)], fill=(40, 40, 40), width=2)
-        # y_offset += 40
 
     # Save to buffer
     img_byte_arr = io.BytesIO()
@@ -129,6 +126,11 @@ def generate_wallpaper(schedule: WeeklySchedule) -> io.BytesIO:
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Handles PDF and Photo uploads."""
+    user_id = update.effective_user.id
+    if ALLOWED_TELEGRAM_IDS and user_id not in ALLOWED_TELEGRAM_IDS:
+        await update.message.reply_text("You're not a registered user for this service.")
+        return
+
     if update.message.document:
         doc = update.message.document
         if doc.mime_type not in ["application/pdf", "image/jpeg", "image/png"]:
@@ -169,6 +171,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await status_msg.edit_text(f"Fehler bei der Verarbeitung: {str(e)}")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if ALLOWED_TELEGRAM_IDS and user_id not in ALLOWED_TELEGRAM_IDS:
+        await update.message.reply_text("You're not a registered user for this service.")
+        return
+        
     await update.message.reply_text(
         f"Hallo! Ich bin dein Schichtplan-Extraktor.\n\n"
         f"Sende mir ein PDF oder ein Bild deines Schichtplans, und ich erstelle dir ein "
