@@ -1,16 +1,39 @@
 import io
+import os
 import logging
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 
 logger = logging.getLogger(__name__)
 
 def generate_wallpaper(schedule: dict, width: int, height: int, font_path: str) -> io.BytesIO:
-    """Generates an iPhone wallpaper from the schedule dict."""
+    """Generates an iPhone wallpaper with an optional custom background."""
     bg_color = (15, 15, 15)
     text_color = (255, 255, 255)
-    accent_color = (100, 100, 100)
+    accent_color = (140, 140, 140) # Slightly lighter for better contrast on images
     
-    image = Image.new("RGB", (width, height), color=bg_color)
+    # Try to load a custom background image
+    image = None
+    bg_dir = "./background-image"
+    if os.path.exists(bg_dir):
+        files = [f for f in os.listdir(bg_dir) if f.lower().endswith(('.png', '.jpg', '.jpeg'))]
+        if files:
+            try:
+                bg_path = os.path.join(bg_dir, files[0])
+                bg_img = Image.open(bg_path).convert("RGB")
+                # Resize and crop to fill the target dimensions (Aspect Fill)
+                image = ImageOps.fit(bg_img, (width, height))
+                logger.info(f"Using custom background: {bg_path}")
+                
+                # Optional: Add a subtle dark overlay to ensure text readability
+                overlay = Image.new("RGBA", (width, height), (0, 0, 0, 140)) # 140/255 opacity
+                image.paste(overlay, (0, 0), overlay)
+            except Exception as e:
+                logger.error(f"Failed to load custom background: {e}")
+
+    # Fallback to solid color if no image found or failed to load
+    if image is None:
+        image = Image.new("RGB", (width, height), color=bg_color)
+    
     draw = ImageDraw.Draw(image)
     
     # Stylistic configuration
