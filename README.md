@@ -172,3 +172,15 @@ Mit dieser Kombination aus dem extrem schnellen Gemini 2.5 Flash und Pydantic ha
 
 ---
 
+## Projektstruktur
+
+```
+.
+├── main.py                 # Telegram-Bot
+├── extractor.py            # Gemini-Extraktion
+├── generator.py            # Wallpaper-Rendering
+├── requirements.txt
+├── .env.example
+├── fonts/                  # TrueType-Schrift
+└── background-image/       # Optionaler Hintergrund
+```

@@ -1,0 +1,14 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "AzureWebJobsStorage": "UseDevelopmentStorage=true",
+    "FUNCTIONS_WORKER_RUNTIME": "python",
+    "GEMINI_API_KEY": "",
+    "TELEGRAM_BOT_TOKEN": "",
+    "ALLOWED_TELEGRAM_IDS": "",
+    "TARGET_PERSON_NAME": "Max Mustermann",
+    "WALLPAPER_WIDTH": "1170",
+    "WALLPAPER_HEIGHT": "2532",
+    "FONT_PATH": "./fonts/Inter_28pt-Light.ttf"
+  }
+}
