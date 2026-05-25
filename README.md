@@ -91,3 +91,84 @@ Gewünschtes JSON-Format:
 }
 ```
 
+## Interface
+The user interface should be a telegram bot: The user uploads the pdf to the telegram bot and the bot will return the generated jpg / png of the wallpaper.
+
+
+## 🌍 Deployment & Infrastruktur (Railway)
+
+* **Laufzeit-Infrastruktur:** Der Telegram-Bot muss **24/7 aktiv sein** und auf eingehende Nachrichten lauschen. Das Projekt wird daher auf **Railway.app** (oder einer vergleichbaren PaaS wie Render) als dauerhafter Hintergrunddienst gehostet.
+* **Bot-Mechanismus:** Der Bot nutzt einfaches **Polling** (`updater.start_polling()`), um Updates von den Telegram-Servern abzurufen. Dies vereinfacht das lokale Testen und benötigt keine feste Webhook-URL mit HTTPS-Zertifikats-Handling auf Railway.
+* **Rolle von GitHub Actions:** GitHub Actions wird **nicht** für das Ausführen des Bots genutzt (da Jobs nach max. 6 Stunden abbrechen). Es dient exklusiv als CI/CD-Pipeline, um bei einem `push` das Deployment auf Railway zu triggern.
+
+---
+
+## 📁 Schriftarten & Assets (Font Handling)
+
+Da Linux-Serverumgebungen (wie die Container auf Railway) standardmäßig keine iOS-typischen oder visuell ansprechenden TrueType-Schriften vorinstalliert haben, gilt folgende Konvention:
+* Im Repository existiert ein Ordner `/fonts` (z. B. mit einer lizenzfreien `.ttf`-Datei wie *Inter* oder *Roboto*).
+* Pillow greift beim Zeichnen des Textes direkt auf diesen relativen Pfad zu, um plattformunabhängig ein identisches Schriftbild zu garantieren.
+
+
+
+## 🔑 Umgebungsvariablen (.env Konfiguration)
+
+Die `.env`-Datei hält das Repository komplett frei von Secrets und hardcodierten Layout-Werten. Folgende Struktur ist zwingend erforderlich:
+
+```env
+# API-Schlüssel & Tokens
+GEMINI_API_KEY=AIzaSy...
+TELEGRAM_BOT_TOKEN=1234567890:ABC...
+
+# Extraktions-Ziel
+TARGET_PERSON_NAME="Max Mustermann"
+
+# Wallpaper-Spezifikationen (iPhone-Optimierung)
+WALLPAPER_WIDTH=1170
+WALLPAPER_HEIGHT=2532
+
+# Asset-Pfade
+FONT_PATH="./fonts/Your-Selected-Font.ttf"
+
+# Laufzeit-Modus (production / development)
+ENV_MODE=production
+```
+
+
+# Context
+
+---
+
+## Verwendete Technologien (Tech Stack)
+
+Für dein Python-Skript kommen im Kern drei bewährte Open-Source- bzw. cloudbasierte Komponenten zum Einsatz, die perfekt ineinandergreifen:
+
+* **`google-genai` (Das offizielle Google SDK):** Dies ist die native Bibliothek von Google, um direkt mit den Gemini-Modellen zu kommunizieren. Sie übernimmt im Hintergrund das HTTP-Handling, das Datei-Streaming (File API) für dein PDF und die sichere Authentifizierung über deinen API-Schlüssel.
+* **Pydantic (Datenvalidierung & Typisierung):** Pydantic ist der Industriestandard in Python, um Datenstrukturen zu definieren. Anstatt dem LLM einfach nur Freitext zu entlocken, liest Gemini das Pydantic-Schema aus, validiert die extrahierten Daten dagegen und liefert dir ein garantiertes, sauberes JSON-Objekt zurück.
+* **Gemini 2.5 Flash (Das KI-Modell):** Ein sogenanntes "multimodales" Modell. Das bedeutet strategisch für dich: Es kann Text, Bilder und Dokumente nativ ohne vorgeschaltete OCR-Software (wie Tesseract) verarbeiten. Es analysiert das PDF direkt als visuelles Dokument, was Fehler bei Tabellen oder komplexen Layouts drastisch reduziert.
+
+---
+
+## Projektstrategie & Workflow
+
+Damit dein Skript stabil läuft und du nicht in die Ratenbegrenzung (Rate Limits) läufst, empfiehlt sich eine **Batch-Processing-Strategie** (schrittweise Verarbeitung in einer Schleife).
+
+Der Ablauf für dein Skript sieht strategisch so aus:
+
+```
+[Lokales PDF] ──> [Google File API Upload] ──> [Gemini 2.5 Flash + Pydantic Schema]
+                                                               │
+[Lokales JSON / DB] <── [Google File API Delete] <── [Strukturiertes JSON-Ergebnis]
+
+```
+
+### Die Kernschritte im Detail:
+
+1. **Upload statt Inline-Daten:** Große PDFs sollten nicht direkt als roher Text oder Base64-String in den Prompt geworfen werden. Die Strategie nutzt Googles `client.files.upload()`. Das lädt das Dokument sicher auf Googles Server hoch und übergibt dem Modell nur eine schlanke Referenz-URI.
+2. **Die "Zero-Cost"-Sicherung:** Da du das Projekt komplett kostenlos betreiben willst, implementierst du nach jedem erfolgreichen Durchlauf einen automatischen Löschbefehl (`client.files.delete()`). So bleibt dein kostenloser Cloud-Speicher bei Google AI Studio immer sauber und leer.
+4. **Fehlertoleranz (Robustness):** Da Netzwerkabbrüche oder kurze API-Aussetzer immer vorkommen können, verpackst du den Extraktionsschritt idealerweise in einen `try-except`-Block. Schlägt ein Dokument fehl, loggt das Skript den Fehler und macht automatisch mit dem nächsten PDF weiter, anstatt komplett abzustürzen.
+
+Mit dieser Kombination aus dem extrem schnellen Gemini 2.5 Flash und Pydantic hast du ein produktionsreifes System gebaut, das komplett im Free Tier läuft.
+
+---
+
