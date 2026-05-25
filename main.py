@@ -58,7 +58,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await status_msg.delete()
         await update.message.reply_photo(
             photo=wallpaper_buffer,
-            caption=f"Hier ist dein Wallpaper für die Woche {schedule.get('woche')} ✨"
+            caption="Hier ist dein Wallpaper ✨"
         )
     except Exception as e:
         logger.error(f"Error: {e}")

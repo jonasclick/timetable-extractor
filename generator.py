@@ -33,17 +33,15 @@ def generate_wallpaper(schedule: dict, width: int, height: int, font_path: str) 
 
     y_offset = TOP_MARGIN_FIXED
     
-    # Draw Week Title
-    draw.text((LEFT_MARGIN, y_offset), f"Woche: {schedule.get('woche', 'Unbekannt')}", font=title_font, fill=text_color)
-    y_offset += 120
-    
     # Draw Days
     for day in schedule.get('tage', []):
-        # Optional: subtle separator line before each day
-        # draw.line([(LEFT_MARGIN, y_offset), (width - LEFT_MARGIN, y_offset)], fill=(40, 40, 40), width=1)
-        # y_offset += 40
-
-        draw.text((LEFT_MARGIN, y_offset), day.get('tag', ''), font=day_font, fill=text_color)
+        tag_text = day.get('tag', '')
+        stunden = day.get('stunden', '0h')
+        
+        # Format: Montag 30. März (9.25h)
+        full_header = f"{tag_text} ({stunden})"
+        
+        draw.text((LEFT_MARGIN, y_offset), full_header, font=day_font, fill=text_color)
         y_offset += 70
         
         for time_slot in day.get('zeit', []):

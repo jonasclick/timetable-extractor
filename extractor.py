@@ -7,20 +7,20 @@ logger = logging.getLogger(__name__)
 WEEKLY_SCHEDULE_SCHEMA = {
     "type": "OBJECT",
     "properties": {
-        "woche": {"type": "STRING"},
         "tage": {
             "type": "ARRAY",
             "items": {
                 "type": "OBJECT",
                 "properties": {
                     "tag": {"type": "STRING"},
+                    "stunden": {"type": "STRING"},
                     "zeit": {"type": "ARRAY", "items": {"type": "STRING"}}
                 },
-                "required": ["tag", "zeit"]
+                "required": ["tag", "stunden", "zeit"]
             }
         }
     },
-    "required": ["woche", "tage"]
+    "required": ["tage"]
 }
 
 async def extract_shift_plan(client, file_bytes: bytes, mime_type: str, target_person: str) -> dict:
@@ -28,9 +28,11 @@ async def extract_shift_plan(client, file_bytes: bytes, mime_type: str, target_p
     prompt = f"""
     Du bist ein präziser Daten-Extraktor. Extrahiere die Arbeitszeiten für die Person {target_person} aus dem bereitgestellten Dienstplan. 
     Antworte ausschliesslich im JSON-Format.
-    Wenn an einem Tag keine Arbeit stattfindet, setze Zeit auf ["Kein Einsatz"].
-    Die Woche sollte im Format "TT.MM.JJJJ - TT.MM.JJJJ" angegeben werden.
-    Jeder Tag sollte im Format "Wochentag TT.MM.JJJJ" (z.B. Montag 20.04.2026) angegeben werden.
+    
+    WICHTIG:
+    - Extrahiere für jeden Tag den Wochentag inkl. Datum (z.B. Montag 20. April).
+    - Extrahiere die totale Anzahl Arbeitsstunden für diesen Tag (steht meist direkt neben den Zeiten) und gib sie im Format "X.XXh" an. Wenn keine Arbeit stattfindet, setze "0h".
+    - Wenn an einem Tag keine Arbeit stattfindet, setze Zeit auf ["Kein Einsatz"].
     """
     
     try:
