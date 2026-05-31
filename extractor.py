@@ -35,6 +35,7 @@ async def extract_shift_plan(client, file_bytes: bytes, mime_type: str, target_p
     - Lass das Jahr komplett weg.
 
     WEITERE REGELN:
+    - Wenn eine Schicht den Zusatz "Servi" trägt, füge dies auch in deiner Ausgabe hinten an der Schichtzeit an als Buchstabe "S" (z.B. "9:00 - 13:00 S").
     - Extrahiere die totale Anzahl Arbeitsstunden für diesen Tag und gib sie im Format "X.XXh" an. Wenn keine Arbeit stattfindet, setze "0h".
     - Wenn an einem Tag keine Arbeit stattfindet, setze Zeit auf ["Kein Einsatz"].
     """
