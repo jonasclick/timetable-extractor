@@ -1,186 +1,139 @@
-# ShiftPlan to iPhone Wallpaper Generator 📱📅
+# Timetable Extractor
 
-Dieses Projekt automatisiert die Umwandlung von unübersichtlichen Schichtplänen (PDFs) in ein perfekt formatiertes, vertikales iPhone-Wallpaper. 
+This app receives a shift plan in Telegram and replies with an iPhone wallpaper that shows the extracted shifts.
 
-Die Pipeline nutzt ein Large Language Model (LLM), um die spezifischen Arbeitszeiten einer Person deterministisch als JSON zu extrahieren, und generiert anschliessend mithilfe von Python (`Pillow`) ein cleanes, perfekt lesbares Hintergrundbild für den Sperrbildschirm.
+The architecture is now serverless:
 
----
+- Telegram sends updates to an Azure Functions HTTP webhook.
+- The function downloads the uploaded document or image from Telegram.
+- Gemini extracts the shifts as structured JSON.
+- Pillow renders the wallpaper.
+- The function sends the generated image back to the same Telegram chat.
 
-## 🚀 Features
+## Architecture
 
-* **Präzise Datenextraktion:** Extrahiert Teilschichten (mehrere Blöcke pro Tag) fehlerfrei aus komplexen PDF-Tabellen.
-* **Deterministisches JSON-Format:** Zwingt das LLM zu einer strukturierten Ausgabe ohne störenden Fliesstext oder Markdown-Blöcke.
-* **iPhone-optimiertes Layout:** Generiert ein Wallpaper im Hochformat (z. B. 1170 x 2532 px). Der obere Bereich bleibt frei für die iOS-Uhrzeit/Widgets, um visuelle Überlagerungen zu vermeiden.
-* **Automatisierbar:** Perfekt geeignet, um über Apple Kurzbefehle (Shortcuts) direkt das neueste Wallpaper aus der iCloud auf den Sperrbildschirm zu laden.
-
----
-
-## 🛠️ Funktionsweise
-
-Das Projekt ist in zwei Hauptschritte unterteilt:
-
-### 1. LLM Parsing (PDF ➡️ JSON)
-Das Schichtplan-PDF (oder ein Screenshot davon) wird an ein LLM übergeben. Der System-Prompt erzwingt eine strikte JSON-Struktur, die auch Tage mit mehreren Arbeitsblöcken (durch Pausen unterbrochen) sauber in einem Array abbildet.
-
-**Verwendeter Prompt:**
-> Siehe unten.
-
-### 2. Bildgenerierung (JSON ➡️ PNG)
-Das generierte JSON wird vom Python-Skript eingelesen. Mittels der Bibliothek `Pillow` wird ein Bild mit dunklem Hintergrund erzeugt, auf dem die Tage und Schichtzeiten vertikal untereinander sauber platziert werden.
-
----
-
-## 📋 Prompt inkl. JSON-Datenstruktur
-
-Du bist ein präziser Daten-Extraktor. Extrahiere die Arbeitszeiten für die Person [Person] aus dem bereitgestellten Dienstplan. Antworte ausschliesslich im folgenden JSON-Format, ohne Markdown-Blockierung (keine ```json), ohne Einleitung und ohne Nachwort. Wenn an einem Tag keine Arbeit stattfindet, setze Zeit auf "Kein Einsatz.
-
-Gewünschtes JSON-Format:
-```json
-{
-  "woche": "20.04.2026 - 26.04.2026",
-  "tage": [
-    {
-      "tag": "Montag 20.04.2026",
-      "zeit": [
-        "11:00 - 16:00",
-        "17:00 - 21:00"
-      ]
-    },
-    {
-      "tag": "Dienstag 21.04.2026",
-      "zeit": [
-        "11:00 - 16:00",
-        "17:00 - 21:00"
-      ]
-    },
-    {
-      "tag": "Mittwoch 22.04.2026",
-      "zeit": [
-        "12:00 - 16:00",
-        "16:30 - 21:15"
-      ]
-    },
-    {
-      "tag": "Donnerstag 23.04.2026",
-      "zeit": [
-        "11:00 - 16:00",
-        "17:00 - 21:00"
-      ]
-    },
-    {
-      "tag": "Freitag 24.04.2026",
-      "zeit": [
-        "09:00 - 13:00",
-        "13:30 - 17:00",
-        "17:30 - 21:15"
-      ]
-    },
-    {
-      "tag": "Samstag 25.04.2026",
-      "zeit": [
-        "Kein Einsatz"
-      ]
-    },
-    {
-      "tag": "Sonntag 26.04.2026",
-      "zeit": [
-        "Kein Einsatz"
-      ]
-    }
-  ]
-}
+```text
+Telegram -> Azure Function webhook -> Gemini extraction -> Wallpaper render -> Telegram reply
 ```
 
-## Interface
-The user interface should be a telegram bot: The user uploads the pdf to the telegram bot and the bot will return the generated jpg / png of the wallpaper.
+This removes the need for a permanently running container and is a much better fit for 1-2 requests per week.
 
+## Project Structure
 
-## 🌍 Deployment & Infrastruktur (Railway)
+```text
+.
+|-- function_app.py
+|-- extractor.py
+|-- generator.py
+|-- requirements.txt
+|-- host.json
+|-- local.settings.json
+|-- .env.example
+|-- scripts/
+|   |-- provision-azure.ps1
+|   `-- set-telegram-webhook.ps1
+|-- fonts/
+`-- background-image/
+```
 
-* **Laufzeit-Infrastruktur:** Der Telegram-Bot muss **24/7 aktiv sein** und auf eingehende Nachrichten lauschen. Das Projekt wird daher auf **Railway.app** (oder einer vergleichbaren PaaS wie Render) als dauerhafter Hintergrunddienst gehostet.
-* **Bot-Mechanismus:** Der Bot nutzt einfaches **Polling** (`updater.start_polling()`), um Updates von den Telegram-Servern abzurufen. Dies vereinfacht das lokale Testen und benötigt keine feste Webhook-URL mit HTTPS-Zertifikats-Handling auf Railway.
-* **Rolle von GitHub Actions:** GitHub Actions wird **nicht** für das Ausführen des Bots genutzt (da Jobs nach max. 6 Stunden abbrechen). Es dient exklusiv als CI/CD-Pipeline, um bei einem `push` das Deployment auf Railway zu triggern.
+## Local Development
 
----
+Prerequisites:
 
-## 📁 Schriftarten & Assets (Font Handling)
+- Python 3.12
+- Azure Functions Core Tools v4
+- Azure CLI
 
-Da Linux-Serverumgebungen (wie die Container auf Railway) standardmäßig keine iOS-typischen oder visuell ansprechenden TrueType-Schriften vorinstalliert haben, gilt folgende Konvention:
-* Im Repository existiert ein Ordner `/fonts` (z. B. mit einer lizenzfreien `.ttf`-Datei wie *Inter* oder *Roboto*).
-* Pillow greift beim Zeichnen des Textes direkt auf diesen relativen Pfad zu, um plattformunabhängig ein identisches Schriftbild zu garantieren.
+Install dependencies:
 
+```powershell
+python -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
 
-
-## 🔑 Umgebungsvariablen (.env Konfiguration)
-
-Die `.env`-Datei hält das Repository komplett frei von Secrets und hardcodierten Layout-Werten. Folgende Struktur ist zwingend erforderlich:
+Configure `local.settings.json` or a local `.env` file:
 
 ```env
-# API-Schlüssel & Tokens
-GEMINI_API_KEY=AIzaSy...
-TELEGRAM_BOT_TOKEN=1234567890:ABC...
-
-# Extraktions-Ziel
-TARGET_PERSON_NAME="Max Mustermann"
-
-# Wallpaper-Spezifikationen (iPhone-Optimierung)
+GEMINI_API_KEY=
+TELEGRAM_BOT_TOKEN=
+TELEGRAM_WEBHOOK_SECRET=
+AzureWebJobsFeatureFlags=EnableWorkerIndexing
+PYTHON_ISOLATE_WORKER_DEPENDENCIES=1
+PYTHON_ENABLE_DEBUG_LOGGING=1
+ALLOWED_TELEGRAM_IDS=12345678,87654321
+TARGET_PERSON_NAME=Max Mustermann
 WALLPAPER_WIDTH=1170
 WALLPAPER_HEIGHT=2532
-
-# Asset-Pfade
-FONT_PATH="./fonts/Your-Selected-Font.ttf"
-
-# Laufzeit-Modus (production / development)
-ENV_MODE=production
+FONT_PATH=./fonts/Inter_28pt-Light.ttf
 ```
 
+Start the function app:
 
-# Context
-
----
-
-## Verwendete Technologien (Tech Stack)
-
-Für dein Python-Skript kommen im Kern drei bewährte Open-Source- bzw. cloudbasierte Komponenten zum Einsatz, die perfekt ineinandergreifen:
-
-* **`google-genai` (Das offizielle Google SDK):** Dies ist die native Bibliothek von Google, um direkt mit den Gemini-Modellen zu kommunizieren. Sie übernimmt im Hintergrund das HTTP-Handling, das Datei-Streaming (File API) für dein PDF und die sichere Authentifizierung über deinen API-Schlüssel.
-* **Pydantic (Datenvalidierung & Typisierung):** Pydantic ist der Industriestandard in Python, um Datenstrukturen zu definieren. Anstatt dem LLM einfach nur Freitext zu entlocken, liest Gemini das Pydantic-Schema aus, validiert die extrahierten Daten dagegen und liefert dir ein garantiertes, sauberes JSON-Objekt zurück.
-* **Gemini 2.5 Flash (Das KI-Modell):** Ein sogenanntes "multimodales" Modell. Das bedeutet strategisch für dich: Es kann Text, Bilder und Dokumente nativ ohne vorgeschaltete OCR-Software (wie Tesseract) verarbeiten. Es analysiert das PDF direkt als visuelles Dokument, was Fehler bei Tabellen oder komplexen Layouts drastisch reduziert.
-
----
-
-## Projektstrategie & Workflow
-
-Damit dein Skript stabil läuft und du nicht in die Ratenbegrenzung (Rate Limits) läufst, empfiehlt sich eine **Batch-Processing-Strategie** (schrittweise Verarbeitung in einer Schleife).
-
-Der Ablauf für dein Skript sieht strategisch so aus:
-
-```
-[Lokales PDF] ──> [Google File API Upload] ──> [Gemini 2.5 Flash + Pydantic Schema]
-                                                               │
-[Lokales JSON / DB] <── [Google File API Delete] <── [Strukturiertes JSON-Ergebnis]
-
+```powershell
+func start
 ```
 
-### Die Kernschritte im Detail:
+The local webhook endpoint is:
 
-1. **Upload statt Inline-Daten:** Große PDFs sollten nicht direkt als roher Text oder Base64-String in den Prompt geworfen werden. Die Strategie nutzt Googles `client.files.upload()`. Das lädt das Dokument sicher auf Googles Server hoch und übergibt dem Modell nur eine schlanke Referenz-URI.
-2. **Die "Zero-Cost"-Sicherung:** Da du das Projekt komplett kostenlos betreiben willst, implementierst du nach jedem erfolgreichen Durchlauf einen automatischen Löschbefehl (`client.files.delete()`). So bleibt dein kostenloser Cloud-Speicher bei Google AI Studio immer sauber und leer.
-4. **Fehlertoleranz (Robustness):** Da Netzwerkabbrüche oder kurze API-Aussetzer immer vorkommen können, verpackst du den Extraktionsschritt idealerweise in einen `try-except`-Block. Schlägt ein Dokument fehl, loggt das Skript den Fehler und macht automatisch mit dem nächsten PDF weiter, anstatt komplett abzustürzen.
-
-Mit dieser Kombination aus dem extrem schnellen Gemini 2.5 Flash und Pydantic hast du ein produktionsreifes System gebaut, das komplett im Free Tier läuft.
-
----
-
-## Projektstruktur
-
+```text
+http://localhost:7071/api/telegram/webhook
 ```
-.
-├── main.py                 # Telegram-Bot
-├── extractor.py            # Gemini-Extraktion
-├── generator.py            # Wallpaper-Rendering
-├── requirements.txt
-├── .env.example
-├── fonts/                  # TrueType-Schrift
-└── background-image/       # Optionaler Hintergrund
+
+## Azure Provisioning
+
+The script [scripts/provision-azure.ps1](C:\dev\timetable-extractor\scripts\provision-azure.ps1) creates:
+
+- Resource Group
+- Storage Account
+- Function App on the Flex Consumption plan
+- User-assigned managed identity for GitHub OIDC
+- Federated credential for the `main` branch
+- Required app settings
+- Python worker indexing and dependency isolation settings
+
+Example:
+
+```powershell
+$env:GEMINI_API_KEY="..."
+$env:TELEGRAM_BOT_TOKEN="..."
+$env:TELEGRAM_WEBHOOK_SECRET="..."
+$env:ALLOWED_TELEGRAM_IDS="12345678,87654321"
+$env:TARGET_PERSON_NAME="Max Mustermann"
+
+.\scripts\provision-azure.ps1 `
+  -SubscriptionId "<subscription-id>" `
+  -ResourceGroupName "prod-rg-timetable-extractor" `
+  -FunctionAppName "timetable-extractor-func" `
+  -Location "switzerlandnorth" `
+  -GitHubRepository "jonasclick/timetable-extractor"
 ```
+
+## Telegram Webhook Setup
+
+After the first deployment:
+
+```powershell
+.\scripts\set-telegram-webhook.ps1 `
+  -BotToken "<telegram-bot-token>" `
+  -FunctionBaseUrl "https://<app-name>.azurewebsites.net" `
+  -SecretToken "<same-secret-as-app-setting>"
+```
+
+## CI/CD
+
+GitHub Actions deploys the app on every push to `main`.
+
+The workflow expects these GitHub repository variables:
+
+- `AZURE_CLIENT_ID`
+- `AZURE_TENANT_ID`
+- `AZURE_SUBSCRIPTION_ID`
+- `AZURE_FUNCTIONAPP_NAME`
+
+Optional:
+
+- `AZURE_FUNCTIONAPP_PACKAGE_PATH`
+
+The Azure side for OIDC is created by the provisioning script. The GitHub repository variables still need to be set in GitHub.

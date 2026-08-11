@@ -1,8 +1,0 @@
-.git
-.github
-.idea
-.venv
-__pycache__
-*.pyc
-.env
-local.settings.json

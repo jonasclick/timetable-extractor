@@ -1,0 +1,10 @@
+.git*
+.venv*
+.python_packages/
+.azure-cli/
+.azurefunctions/
+__pycache__
+.pytest_cache
+.idea
+.tmp
+local.settings.json
