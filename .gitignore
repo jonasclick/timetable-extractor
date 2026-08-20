@@ -6,6 +6,7 @@ __pycache__/
 # C extensions
 *.so
 
+local.settings.json
 .vscode
 .tmp
 .azure-cli
@@ -130,9 +131,13 @@ bin
 obj
 appsettings.json
 local.settings.json
+.azure-cli/
+.tmp/
+.venv/
+.azurefunctions/
 
 # Azurite artifacts
 __blobstorage__
 __queuestorage__
 __azurite_db*__.json
-.python_packages
+.python_packages/
